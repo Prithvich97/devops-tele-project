@@ -1,0 +1,342 @@
+ec2 creation and logging inside machine 
+
+ssh -i devops-demo.pem ubuntu@3.139.105.69
+
+#step-2, install docker,kubectl,ekctl (pre- requisite)
+
+    # Add Docker's official GPG key:
+    sudo apt-get update
+    sudo apt-get install ca-certificates curl
+    sudo install -m 0755 -d /etc/apt/keyrings
+    sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+    # Add the repository to Apt sources:
+    echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+    $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    sudo apt-get update
+
+    sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    sudo docker run hello-world
+    sudo usermod -aG docker ubuntu
+
+    #intsall kubectl
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+    ls
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+    echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+    sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+    kubectl version --client
+
+    #terraform intsallation 
+
+    sudo apt-get update && sudo apt-get install -y gnupg software-properties-common
+
+        wget -O- https://apt.releases.hashicorp.com/gpg | \
+    gpg --dearmor | \
+    sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+
+
+    gpg --no-default-keyring \
+    --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg \
+    --fingerprint
+
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(grep -oP '(?<=UBUNTU_CODENAME=).*' /etc/os-release || lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+    sudo apt update
+
+    sudo apt-get install terraform
+
+    terraform --version
+
+
+#step-3
+     running app locally, will use docker compose ,is a preferd was to test application as,
+     a docker compose can run multiple containers at once and also eatablish dependincies  between 
+     gcontainers , e.g like front end conatiner must start first than the backend ..... 
+
+
+     clone the repo in instances 
+     git clone https://github.com/iam-veeramalla/ultimate-devops-project-demo.git
+     cd ultimate-devops-project-demo/
+     ls -ltr 
+       now u can see the file docker-compose.yml , check out this file , which have the deployment 
+       info like networking , services, how to build services  and containers and how to run containers 
+
+    vim docker-compose.yml 
+    now run 
+    ->  docker compose up -d
+
+    this will pull all the images , after this just add inbound rule to your secuty group allowing port 8080,
+     and serach 3.139.105.69:8080, you should be able to access the website 
+
+#step-4
+
+    now we will start containrizing our servoces , change the directory in the ec2 instance and go the src folder
+
+    cd ultimate-devops-project-demo/src
+
+    -> so the first svc we will we containerizing is   product-catalog(go, so check if go is installed "sudo apt  install golang-go", go.mod file will have all the dependcies mentioned by developer) ,
+     just go to src folder and check the requirments and steps the developer has mentioned to run the service locally , if not ask developer to update the readme file
+     
+     -->so check readme and run commands 
+            -> go build -o product-catalog .  (we are nameing the binary file to be created as product-catalog)
+            ubuntu@ip-172-31-7-51:~/ultimate-devops-project-demo/src/product-catalog$ ./product-catalog 
+                        INFO[0000] Loaded 10 products
+                        INFO[0000] Product Catalog gRPC server started on port: 8088
+--> now we verified the service is running , so now we will build docker file than the image and  conatinerize it 
+        after writing our docker multistage file
+         docker build -t prithvich97/product-catalog:v1 .
+
+         docker run prithvich97/product-catalog:v1SS
+
+
+# step -5 
+    now we will containrize ad srvice , before containrizing any service we check locally how is the functinalityy
+
+    check if java is installed(sudo apt install openjdk-21-jre-headless//sudo apt install openjdk-17-jre-headless)
+    now follow the developer instruction 
+
+    -->./gradlew installDist
+
+    now check if this dir have been  created It will create an executable script
+`           src/ad/build/install/oteldemo/bin/Ad`.
+    -->export AD_PORT=9099
+
+    -->export FEATURE_FLAG_GRPC_SERVICE_ADDR=featureflagservice:50053
+    ./build/install/opentelemetry-demo-ad/bin/Ad
+
+    it should somewhere show ad service started (2025-07-22 15:59:18 - oteldemo.AdService - Ad service started, listening on 9099 trace_id= span_id= trace_flags= )
+
+    now right the docker file 
+    --> docker build -t prithvich97/adservice:v1 .
+    --> docker run prithvich97/adservice:v1 
+
+#step-6
+    now we will containrize a python service , in python we dont need to create a binary file we can execute directly 
+
+    docker build -t prithvich97/recommendationservice:v1 .
+    docker run rithvich97/recommendationservice:v1 
+
+                ubuntu@ip-172-31-7-51:~/ultimate-devops-project-demo/src/recommendation$ docker run prithvich97/recommendationservice:v1 
+            Traceback (most recent call last):
+            File "/usr/src/app/recommendation_server.py", line 130, in <module>
+                service_name = must_map_env('OTEL_SERVICE_NAME')
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            File "/usr/src/app/recommendation_server.py", line 119, in must_map_env
+                raise Exception(f'{key} environment variable must be set')
+            Exception: OTEL_SERVICE_NAME environment variable must be set
+
+            getting error bcz tehre are some valued neded to be picked up by actual application 
+
+
+
+
+#sep-7
+   will use docker init , which can only be iused on local machine and not ec2 instances 
+
+   docker init / when we are unknown to pragraming languafge 
+   version -1.85.0
+   port -7077ls 
+   a docker file will be craeted 
+
+   docker build .
+         this was just show functinalitty oh docker init 
+
+
+#step-8 
+    pushing images to docker hiub  
+    -> docker login
+
+
+    now there are 20 microservices and to push and and test them seperately can be hectic so we gonna use docker compose for thi one d
+
+
+    application usually have 3 part 
+
+    services 
+    networking 
+    volumes 
+    if we have infromation about these 3 componets for a particuar application , it gets  easy to write a docker compose file 
+
+
+    ubuntu@ip-172-31-7-51:~/ultimate-devops-project-demo$ docker compose down 
+
+    we are shuttiing everything so we can run our docker-compose file 
+
+    docker compose up -d
+
+
+
+#step-7
+
+before this we wrote backend terraform config deployed s3 and dynamo table ,
+after that we delpoyed our cluster usin main and module files using terraform 
+now we gonna try to connect  the ec2 instance we used to deploy our app locally to connect to the cluster we created using terraform 
+
+    -> ssh -i devops-demo.pem ubuntu@###.#.##.###
+
+    docker compose up -d
+
+    now to connect ec2 to cluter we need to check our kubeconfig file , using context we will know which cluster it is attached to
+    --> ubuntu@ip-172-31-15-162:~/ultimate-devops-project-demo$ kubectl config view
+apiVersion: v1
+clusters: null
+contexts: null
+current-context: ""
+kind: Config
+preferences: {}
+users: null
+-->ubuntu@ip-172-31-15-162:~/ultimate-devops-project-demo$ kubectl config current-context
+error: current-context is not set
+
+
+this means we have change the context to the current cluster 
+
+
+install aws cli 
+->  sudo apt install unzip -y
+->curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+aws configure (yes with in ec2)
+
+
+-->~/.aws/credentials
+
+--now 
+aws eks update-kubeconfig --name my-eks-cluster --region us-east-2
+--> ubuntu@ip-172-31-15-162:~$ kubectl config current-context
+arn:aws:eks:us-east-2:089081311771:cluster/my-eks-cluster
+ubuntu@ip-172-31-15-162:~$ kubectl get nodes
+
+-> now we need assign a service account to our pods so it can access the cluster 
+    even if we do not assign a service account to our pods, they will have access to the cluster, because every cluster have default service ACCOUNT 
+    but it is a good practice to assign a service account to our pods so that we can control the access of the pods to the cluster.
+
+
+    now we will create a service account and assign it to our pods
+    -->ubuntu@ip-172-31-15-162:~/ultimate-devops-project-demo/kubernetes$ kubectl apply -f serviceaccount.yaml
+     serviceaccount/opentelemetry-demo created
+     --> kubectl get sa
+     
+
+     now we will deploy our services , there are 2 ways go to each folder apply deployment and service file for each micro service 
+
+     or there is complete.yaml file , has coonfig for alll services to save time we will ude it 
+
+     --> kubectl apply -f complete.yaml
+     --> kubectl get pods, quickly check if all pods are running
+
+now we have deployed our cluster by teeraform and connected our ec2 instance to the cluster, 
+now we can deploy our services to the cluster using kubectl, but still we can not access our services from outside the cluster,
+bcz ec2 instance we using is outside this vpc 
+to check
+ --> kubectl get svc |grep frontend,
+  and ping to the adress, we cant , for this either we need to change the service type or create ingress controller 
+
+even if there is lamda function with in the vpc they cant acees the pods in cluster , bcz cluter has there on network , so services within the cluster can communicate 
+but anything outside the cluster cant , even if with in the same vpc, for that we need to change service type from cluster ip to node port , this will aloow acces to pods within in the vpc,
+but we wtill ned to acces outside from vpc , so we can change it the type: LB , this will give us an external IP 
+but we need to change svc.yaml for only frontendproxy , bcz we only need to acees the front end service from outside the cluster, rest of the services can be accessed from within the cluster only 
+
+    -->kubectl edit svc opentelemetry-demo-frontendproxy
+    this will open the svc.yaml file in the editor, change the type from ClusterIP to LoadBalancer, save and exit
+
+    --> kubectl get svc opentelemetry-demo-frontendproxy
+    this will give you an external IP, use this IP to access the frontend service from outside the cluster
+    <external-ip>:8080
+
+    but using LB is not a good practice, bcz it will create a new load balancer for each service which need to be accessed from outside in this case just frontendproxy ,
+     which will increase the cost,
+     so we will us eingress controller , it is declarative , can use any load balancer type like alb, nginx , and nstead of creating LB for each service, it will create a single load balancer for all the services, and we can mention services in the target group 
+    
+
+     make sure eksctl is installed in the ec2 instance, if not install it using the following command:
+        # Step 1: Download eksctl binary
+           curl --silent --location "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" --output eksctl.tar.gz
+
+             # Step 2: Extract the tarball
+                  tar -xzf eksctl.tar.gz -C /tmp
+
+                   # Step 3: Move the binary to a directory in your PATH
+                         sudo mv /tmp/eksctl /usr/local/bin
+
+                                 # Step 4: Confirm installation
+                                     eksctl version
+   --> kubectl config current-context
+
+   --> kubectl edit svc opentelemetry-demo-frontendproxy, change the type from LoadBalancer to NodePort, save and exit
+
+  create ingress resouce 
+
+  --> ubuntu@ip-172-31-15-162:~/ultimate-devops-project-demo/kubernetes/frontendproxy$ kubectl apply -f ingress.yaml
+ingress.networking.k8s.io/frontend-proxy created
+  --> kubectl get ing
+
+  ubuntu@ip-172-31-15-162:~/ultimate-devops-project-demo/kubernetes/frontendproxy$ kubectl get ing
+NAME             CLASS   HOSTS         ADDRESS   PORTS   AGE
+frontend-proxy   alb     example.com             80      89s
+
+see the address to access the frontend service from outside the cluster, you can use the following command to get the address:but adress section is empty 
+
+so  now we need to install ingress controller,
+
+  --> first create policy for the ingress controller to access the cluster -->than we will vcreate iam role and attach it to the service account of alb controller 
+
+  -->in ultimate-deom-aws will be config of ingress controler
+
+  -->ubuntu@ip-172-31-15-162:~$ export cluster_name=my-eks-cluster
+  --> export AWS_REGION=us-east-2  
+
+#fetch the oidc id
+ -->  oidc_id=$(aws eks describe-cluster --name $cluster_name --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 5) 
+ --> echo $oidc_id
+ #associating oidc provide4r to cluster 
+ --> eksctl utils associate-iam-oidc-provider --cluster $cluster_name --approve
+
+ #now we wil downlpoad the policy craete the policy for elb and attach it to to the iam role which will conect to service acc of alb 
+
+--> curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.11.0/docs/install/iam_policy.json
+ -->aws iam create-policy \
+    --policy-name AWSLoadBalancerControllerIAMPolicy \
+    --policy-document file://iam_policy.json
+
+    #craeting iam role so we can attach role to the policy,change  cluster name , aws account id, 
+
+    eksctl create iamserviceaccount \
+  --cluster=my-eks-cluster \
+  --namespace=kube-system \
+  --name=aws-load-balancer-controller \
+  --role-name AmazonEKSLoadBalancerControllerRole \
+  --attach-policy-arn=arn:aws:iam::089081311771:policy/AWSLoadBalancerControllerIAMPolicy \
+  --approve
+
+
+  # now we will install the alb controller using helm chart
+
+  #download helm(https://helm.sh/docs/intro/install/)
+ # add helm repo
+ -->helm repo add eks https://aws.github.io/eks-charts
+
+ ------>change cluster , vpc, region
+--> helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=my-eks-cluster --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller --set region=us-east-2 --set vpcId=vpc-0c0383a723b0e4b56
+
+# check if poa rae up and running 
+ubuntu@ip-172-31-15-162:~$ kubectl get pods -n kube-system
+NAME                                            READY   STATUS    RESTARTS   AGE
+aws-load-balancer-controller-867459c4bc-5696s   1/1     Running   0          39s
+aws-load-balancer-controller-867459c4bc-n86ql   1/1     Running   0          39s
+aws-node-njmh4                                  2/2     Running   0          7h54m
+aws-node-ntjjz                                  2/2     Running   0          7h54m
+coredns-858457f4f6-2d484                        1/1     Running   0          7h55m
+coredns-858457f4f6-kwjj8                        1/1     Running   0          7h55m
+kube-proxy-dgd2l                                1/1     Running   0          7h54m
+kube-proxy-mcwww                                1/1     Running   0          7h54m
+ubuntu@ip-172-31-15-162:~$
+
+now u can aceess the frontend service using the address given in the ingress resource, but we need to change the host name to example.com, so we can access the service using the domain name, for this we need to create a route 53 record set and point it to the address given in the ingress resource
+but we do it the local machine, so we can access the service using the domain name, 
+open noted pad go the etc files and in host add the 
+example.com ip-address, (nslookup (arn load balcer , take any of 2 ip address))

@@ -7,7 +7,7 @@ x-default-logging: &logging
     max-size: "5m"
     max-file: "2"
     tag: "{{.Name}}"
-
+#this part of file reamins same just values changes x 
 networks:
   default:
     name: opentelemetry-demo
