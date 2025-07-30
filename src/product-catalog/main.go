@@ -282,6 +282,7 @@ func (p *productCatalog) GetProduct(ctx context.Context, req *pb.GetProductReque
 	return found, nil
 }
 
+
 func (p *productCatalog) SearchProducts(ctx context.Context, req *pb.SearchProductsRequest) (*pb.SearchProductsResponse, error) {
 	span := trace.SpanFromContext(ctx)
 
