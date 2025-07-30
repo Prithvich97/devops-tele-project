@@ -346,4 +346,8 @@ step -9
 ci/cd check
 
 
-git chekout -b githubcicheck
+git checkout -b githubcicheck
+git status
+git add . 
+git commit -m "  "
+git push origin githubcicheck
