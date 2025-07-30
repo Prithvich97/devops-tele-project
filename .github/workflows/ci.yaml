@@ -75,8 +75,8 @@ jobs:
             file: src/product-catalog/Dockerfile
             push: true
             run: |
-                  echo "Username: ${{ secrets.DOCKER_USERNAME }}"
-                  echo "Tag: ${{ secrets.DOCKER_USERNAME }}/product-catalog:${{ github.run_id }}"
+                 echo "Username: ${{ secrets.DOCKER_USERNAME }}"
+                 echo "Tag: ${{ secrets.DOCKER_USERNAME }}/product-catalog:${{ github.run_id }}"
             tags: ${{secrets.DOCKER_USERNAME}}/product-catalog:${{github.run_id}}
 
     
