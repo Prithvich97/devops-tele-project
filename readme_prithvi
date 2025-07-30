@@ -340,3 +340,14 @@ now u can aceess the frontend service using the address given in the ingress res
 but we do it the local machine, so we can access the service using the domain name, 
 open noted pad go the etc files and in host add the 
 example.com ip-address, (nslookup (arn load balcer , take any of 2 ip address))
+
+
+step -9
+ci/cd check
+
+
+git checkout -b githubcicheck
+git status
+git add . 
+git commit -m "  "
+git push origin githubcicheck
